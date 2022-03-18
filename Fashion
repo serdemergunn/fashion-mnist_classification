@@ -1,0 +1,88 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+
+train_df= pd.read_csv(r'C:\Users\serde\OneDrive\Masaüstü\fashion_mnist\fashion-mnist_train.csv')
+test_df= pd.read_csv(r'C:\Users\serde\OneDrive\Masaüstü\fashion_mnist\fashion-mnist_test.csv')
+test_df.head()
+
+labels=["T-shirt/top",
+"Trouser",
+"Pullover",
+"Dress",
+"Coat",
+ "Sandal",
+"Shirt",
+"Sneaker",
+"Bag",
+"Ankle boot"]
+labels
+
+#kerasta kullanabilmemiz için data frame'leri numpy arraylere çevirmemiz gerekli
+train_data=np.array(train_df, dtype='float32')
+test_data=np.array(test_df, dtype='float32')
+
+#verileri labellar ve pikseller olarak x ve y şeklinde ayırıyoruz
+x_train= train_data[:,1:]/255  #bütün satırları al, label olan ilk sütunu alma
+y_train= train_data[:,0] #bütün satırları al ve sadece ilk sütunu al 
+x_test= test_data[:,1:]/255 
+y_test= test_data[:,0] 
+#piksel değerlerinin 0-255 arası değil 0-1 arası olmasını istiyoruz bundan dolayı 255'e böldük
+
+x_train, x_val, y_train, y_val= train_test_split(
+x_train, y_train, test_size=0.2, random_state=None)
+#modeli iyileştirebilmek için validation bölümü ayrıldı
+
+x_train=x_train.reshape(x_train.shape[0],28,28,1)
+x_test=x_test.reshape(x_test.shape[0],28,28,1)
+x_val=x_val.reshape(x_val.shape[0],28,28,1)
+
+plt.imshow(x_train[88], cmap='Greys')
+plt.show()
+#şu an her biri görsel formatına geldi
+
+import keras
+from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, Activation, BatchNormalization
+from keras.callbacks import TensorBoard
+
+cnn_model=Sequential([Conv2D(filters=32, kernel_size=3, activation='relu', input_shape=(28,28,1)),
+                     MaxPooling2D(pool_size=2),
+                     Dropout(0.2), # zayıf bilgilerin unutulması için
+                     Flatten(),
+                     Dense(100, activation='relu'),
+                     Dense(50, activation='relu'),
+                     Dense(10, activation='softmax')])
+                     
+cnn_model.compile(loss='sparse_categorical_crossentropy',
+                 optimizer=Adam(learning_rate=0.001),
+                 metrics=['accuracy'])
+                 
+fit= cnn_model.fit(x_train, y_train, 
+             batch_size=512,
+             epochs=10,
+             shuffle=True,
+             verbose=1,
+             validation_data=(x_val,y_val)
+             )
+      
+y_pred=cnn_model.predict(x_test)
+
+score=cnn_model.evaluate(x_test,y_test,verbose=1)
+
+print('loss: {:.4f}'.format(score[0]))
+print('accuracy: {:.4f}'.format(score[1]))
+
+plt.figure(figsize=(16,30))
+
+j=1
+result=" "
+for i in np.random.randint(0,1000,60):
+    plt.subplot(10,6, j)
+    j+=1
+    plt.imshow(x_test[i], cmap="Greys")
+    plt.title("Actual= {} / {} \nPredicted= {} / {} ".format(labels[y_test[i].astype(int)],y_test[i].astype(int),labels[np.argmax(y_pred[i]).astype(int)],np.argmax(y_pred[i])))
+    plt.axis("off")
+
